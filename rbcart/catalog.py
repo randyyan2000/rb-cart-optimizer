@@ -57,6 +57,7 @@ class Catalog:
             pmap.setdefault(p["productId"], {})[p.get("subTypeName") or "Normal"] = {
                 "market": p.get("marketPrice"),
                 "low": p.get("lowPrice"),
+                "direct_low": p.get("directLowPrice"),
             }
         self.by_name: dict[str, list[Printing]] = {}
         self.by_id: dict[int, Printing] = {}

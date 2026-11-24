@@ -24,11 +24,16 @@ LISTING_TTL = 3600
 DIRECT_KEY = "__direct__"
 
 CONDITION_RANK = {
+    "any": 0,  # snapshot low prices carry no condition
+    "mint": 0,
     "near mint": 0,
     "lightly played": 1,
+    "slightly played": 1,  # CardTrader
     "moderately played": 2,
     "heavily played": 3,
+    "played": 3,  # CardTrader
     "damaged": 4,
+    "poor": 4,  # CardTrader
 }
 
 HEADERS = {
@@ -53,6 +58,8 @@ class Listing:
     seller_id: int | None = None
     direct: bool = False
     fallback_shipping: float | None = None  # what the listing itself says shipping costs
+    currency: str = "USD"
+    via_zero: bool = False
 
     def to_dict(self):
         return asdict(self)

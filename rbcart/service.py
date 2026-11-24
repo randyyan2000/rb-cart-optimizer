@@ -8,6 +8,7 @@ from pathlib import Path
 from .catalog import Catalog, load_catalog, norm
 from .deck import is_rune_section, parse_deck
 from .listings import DemoSource, LiveSource, condition_ok
+from .sources_extra import CardTraderSource, SnapshotSource
 from .optimize import Demand, Options, greedy, optimize
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -26,6 +27,11 @@ DEFAULT_SETTINGS = {
     "direct_shipping": 3.99,
     "unknown_shipping": 1.99,
     "unknown_threshold": None,
+    "snapshot_shipping": 1.31,  # assumed per-store shipping in snapshot mode
+    "ct_zero_only": True,
+    "ct_zero_shipping": 12.0,  # check CardTrader's current CT Zero rate to the US and set this
+    "ct_zero_threshold": None,
+    "ct_seller_shipping": 5.0,
 }
 
 
@@ -91,12 +97,23 @@ def compute_needs(rows: list[dict], owned: dict, modes: dict) -> dict[str, dict]
     return dict(agg)
 
 
+def make_source(s: dict):
+    kind = s.get("source", "live")
+    if kind == "demo":
+        return DemoSource()
+    if kind == "snapshot":
+        return SnapshotSource()
+    if kind == "cardtrader":
+        return CardTraderSource(zero_only=bool(s.get("ct_zero_only", True)))
+    return LiveSource()
+
+
 def run(deck_text: str, owned: dict, modes: dict, settings: dict, refresh: bool = False) -> dict:
     s = {**DEFAULT_SETTINGS, **(settings or {})}
     catalog = load_catalog()
     rows = resolve(deck_text, catalog)
     needs = compute_needs(rows, owned, modes)
-    source = DemoSource() if s["source"] == "demo" else LiveSource()
+    source = make_source(s)
 
     warnings = []
     demands: list[Demand] = []
@@ -149,6 +166,16 @@ def run(deck_text: str, owned: dict, modes: dict, settings: dict, refresh: bool 
         for it in sel["items"]:
             lines[(it["card"], it["set"])] += it["qty"]
     best["mass_entry"] = "\n".join(f"{q} {c}" + (f" [{st}]" if st else "") for (c, st), q in sorted(lines.items()))
+
+    currencies = {l.currency for d in demands for l in d.listings}
+    if currencies - {"USD"}:
+        warnings.append(f"Prices are in {', '.join(sorted(currencies))} (your CardTrader account currency), not USD.")
+    if source.name == "snapshot":
+        warnings.append("Snapshot mode: estimate from TCGplayer's daily low prices (any condition); "
+                        "each low is assumed to be a different store charging the snapshot shipping. "
+                        "Use live listings for a real cart.")
+    if source.name == "cardtrader":
+        warnings.append("CardTrader's API has no shipping prices: shipping uses the CardTrader estimates in Settings.")
 
     return {"rows": rows, "needs": needs, "baseline": base, "optimized": best, "warnings": warnings,
             "source": source.name}

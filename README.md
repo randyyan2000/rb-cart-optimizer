@@ -29,6 +29,27 @@ The results show each seller's items, subtotal, and shipping, and how far over o
 
 It's a mixed-integer program (PuLP + CBC). For every listing it chooses how many copies to buy. For every seller it chooses whether to order from them at all (if so, you pay their shipping), and whether the order reaches their free-shipping minimum (only allowed if their subtotal is at least the minimum). It minimizes card cost + shipping paid + per-package hassle cost − value of filler bought. It considers the cheapest 25 listings per card, plus listings from any seller who stocks 3 or more of the cards you need.
 
+## Listing sources (Settings → Listings source)
+
+| Source | What it is | Shipping |
+|---|---|---|
+| **TCGplayer live listings** | Real seller listings from the endpoints tcgplayer.com's pages use (unofficial). | Each seller's own rate and free-shipping minimum, looked up automatically. |
+| **TCGplayer daily snapshot** | TCGplayer's daily lowest price for each printing, from tcgcsv.com. No individual sellers. | Pessimistic estimate: each card is assumed to come from a different store at the "snapshot shipping" price. Lowest prices can be any condition. Good for a ballpark only. |
+| **CardTrader** | CardTrader's official API. Needs `CARDTRADER_TOKEN` (see below). | The API has no shipping prices. With "CardTrader Zero only", the Zero sellers' items are combined into one package at the CardTrader Zero shipping price you enter. Otherwise every seller is its own package at the per-seller estimate. Look up CardTrader's current US rates and enter them. |
+| **Demo** | Made-up sellers for trying the UI. | Made up. |
+
+### CardTrader setup
+
+1. Get your API token in CardTrader under Settings → API.
+2. Start the app with it set:
+
+```bash
+export CARDTRADER_TOKEN=...   # keep it out of git
+python -m rbcart
+```
+
+Cards are matched to CardTrader using the TCGplayer product ID CardTrader stores for each card, with the card name as a fallback. Riftbound is CardTrader game 22. Prices are in your CardTrader account's currency, and the app warns if that isn't USD.
+
 ## Data sources and caveats
 
 - **Catalog and market prices:** [tcgcsv.com](https://tcgcsv.com), a daily mirror of TCGplayer's catalog. Riftbound is category 89.

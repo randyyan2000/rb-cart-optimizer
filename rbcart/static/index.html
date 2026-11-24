@@ -78,13 +78,17 @@ details summary{cursor:pointer;color:var(--mute);margin:6px 0}
       <h2>Settings</h2>
       <div class="grid">
         <label>Listings source
-          <select id="s_source"><option value="live">Live TCGplayer</option><option value="demo">Demo (fake sellers)</option></select></label>
+          <select id="s_source"><option value="live">TCGplayer live listings</option><option value="snapshot">TCGplayer daily snapshot (estimate)</option><option value="cardtrader">CardTrader (official API)</option><option value="demo">Demo (fake sellers)</option></select></label>
         <label>Worst condition OK
           <select id="s_min_condition"><option>Near Mint</option><option>Lightly Played</option><option>Moderately Played</option><option>Heavily Played</option></select></label>
         <label>Max packages (blank = no limit)<input type="number" id="s_max_sellers" min="1"></label>
         <label>Hassle cost per package $<input type="number" id="s_seller_penalty" step="0.25" min="0"></label>
         <label>Spare copies allowed per card<input type="number" id="s_extra_copies" min="0" max="4"></label>
         <label>Direct free-ship minimum $<input type="number" id="s_direct_threshold" step="1"></label>
+        <label>Snapshot: shipping per store $<input type="number" id="s_snapshot_shipping" step="0.01" min="0"></label>
+        <label>CardTrader Zero shipping $<input type="number" id="s_ct_zero_shipping" step="0.5" min="0"></label>
+        <label>CardTrader per-seller shipping $<input type="number" id="s_ct_seller_shipping" step="0.5" min="0"></label>
+        <label class="ck"><input type="checkbox" id="s_ct_zero_only"> CardTrader Zero sellers only</label>
         <label class="ck"><input type="checkbox" id="s_allow_foil"> Allow foils (foil-only cards are always allowed)</label>
         <label class="ck"><input type="checkbox" id="s_allow_variants"> Allow alt-art / promo printings</label>
         <label class="ck"><input type="checkbox" id="refresh"> Refetch listings (ignore 1h cache)</label>
@@ -95,11 +99,11 @@ details summary{cursor:pointer;color:var(--mute);margin:6px 0}
 </main>
 <script>
 const $ = s => document.querySelector(s);
-const money = v => v == null ? "—" : "$" + Number(v).toFixed(2);
+const money = v => v == null ? "—" : "$" + Number(v).toFixed(2); // CardTrader may be EUR: see warning
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 let state = {deck_text:"", owned:{}, modes:{}, settings:{}};
 let rows = [];
-const SETTINGS = ["source","min_condition","max_sellers","seller_penalty","extra_copies","direct_threshold","allow_foil","allow_variants"];
+const SETTINGS = ["source","min_condition","max_sellers","seller_penalty","extra_copies","direct_threshold","allow_foil","allow_variants","snapshot_shipping","ct_zero_shipping","ct_seller_shipping","ct_zero_only"];
 
 async function api(path, body){
   const r = await fetch(path, body ? {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)} : {});
@@ -207,7 +211,7 @@ function renderResults(res){
 }
 $("#go").onclick = async ()=>{
   readSettings(); $("#go").disabled=true;
-  $("#status").textContent = state.settings.source==="live" ? "Fetching listings from TCGplayer (can take a minute)…" : "Optimizing…";
+  $("#status").textContent = ["live","cardtrader"].includes(state.settings.source) ? "Fetching listings (can take a minute)…" : "Optimizing…";
   try{ renderResults(await api("/api/optimize", {...state, refresh:$("#refresh").checked})); $("#status").textContent=""; }
   catch(e){ $("#status").textContent=""; $("#results").innerHTML=`<h2>Results</h2><p class="bad">${esc(e.message)}</p>`; }
   finally{ $("#go").disabled=false; }

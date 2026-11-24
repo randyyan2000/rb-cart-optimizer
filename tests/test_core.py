@@ -57,3 +57,23 @@ def test_max_sellers():
     demands = [Demand(k, k, 1, listings=[L(f"s{k}", 1.0, pid=i), L("big", 1.5, pid=i)]) for i, k in enumerate("abc")]
     ship = {"sa": Shipping(0), "sb": Shipping(0), "sc": Shipping(0), "big": Shipping(0)}
     assert optimize(demands, ship, Options(max_sellers=1))["packages"] == 1
+
+
+def test_cardtrader_product_parsing():
+    from rbcart.sources_extra import CT_ZERO_KEY, parse_ct_product
+    p = {"id": 9, "blueprint_id": 5, "quantity": 3, "graded": False, "on_vacation": False,
+         "properties_hash": {"condition": "Slightly Played", "riftbound_language": "en", "riftbound_foil": True},
+         "user": {"username": "bob", "can_sell_via_hub": True, "country_code": "IT"},
+         "price": {"cents": 125, "currency": "USD"}}
+    l = parse_ct_product(p, 111, zero_only=True)
+    assert (l.seller_key, l.price, l.qty, l.printing, l.currency) == (CT_ZERO_KEY, 1.25, 3, "Foil", "USD")
+    assert parse_ct_product({**p, "user": {"username": "x", "can_sell_via_hub": False}}, 111, True) is None
+    assert parse_ct_product(p, 111, zero_only=False).seller_key == "ct-bob"
+    fr = {**p, "properties_hash": {**p["properties_hash"], "riftbound_language": "fr"}}
+    assert parse_ct_product(fr, 111, True) is None
+
+
+def test_cardtrader_conditions_map():
+    from rbcart.listings import condition_ok
+    assert condition_ok("Slightly Played", "Lightly Played")
+    assert not condition_ok("Played", "Lightly Played")
